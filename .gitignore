@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+
+# Frontend dependencies and generated output
+node_modules/
+dist/
+.vite/
+coverage/
+
+# Backend generated output
+target/
+*.class
+
+# Local editor configuration and logs
+.idea/
+.vscode/
+*.iml
+*.log
