@@ -1,0 +1,118 @@
+{
+  "tenant": "UI_ACCEPTANCE_1023",
+  "factory": "QA-FACTORY-1023",
+  "module": {
+    "sn": "UI-MOD-A",
+    "revision": 3,
+    "production": "COMPLETED",
+    "quality": "ACCEPTED",
+    "rework": "CLOSED"
+  },
+  "pack": {
+    "sn": "UI-PACK-A",
+    "releaseId": "8f7d6912-5a0e-4086-b284-534227efe898",
+    "members": [
+      "UI-CELL-B",
+      "UI-CELL-C",
+      "UI-MOD-A",
+      "UI-PACK-A"
+    ],
+    "evidenceCount": 2
+  },
+  "kernelAssertions": {
+    "removedCellExcluded": true,
+    "twoLevelMasterDataAndBomLinked": true,
+    "oldNgRetained": true,
+    "uniqueOutputFact": true
+  },
+  "facts": {
+    "versions": 2,
+    "orders": 2,
+    "objects": 5,
+    "visits": 5,
+    "assemblies": 4,
+    "tests": 3,
+    "reworks": 1,
+    "releases": 2
+  },
+  "deviceInput": "Explicit simulation=true through an authenticated acceptance DEVICE account; no field device acceptance claimed",
+  "originalTenantCountsPreserved": {
+    "mes_trace_object": 12,
+    "mes_work_order": 3,
+    "mes_station_visit": 9,
+    "mes_assembly_link": 10,
+    "mes_test_run": 5,
+    "mes_measurement": 5,
+    "mes_inventory_transaction": 19,
+    "mes_rework_order": 1,
+    "mes_release_record": 1,
+    "mes_release_member": 7,
+    "mes_production_fact": 4
+  },
+  "uniqueOutputCounts": {
+    "MODULE": 1,
+    "PACK": 1
+  },
+  "sourceCommit": "96ea56338ef1438938a546382368eb1d7d400938",
+  "automatedChecks": {
+    "backendTests": 38,
+    "frontendTests": 15,
+    "frontendBuild": "passed"
+  },
+  "browserVerified": [
+    "master material create/detail",
+    "cell registration and receipt",
+    "manufacturing draft and publication",
+    "work order and SN registration",
+    "assembly and scanner focus",
+    "manual inspection and completion",
+    "quality rework replacement and retest closure",
+    "release and genealogy",
+    "identity and role lists",
+    "authenticated SOP PDF canvas"
+  ],
+  "upgrade": {
+    "migrations": [
+      "001-foundation",
+      "002-domain",
+      "003-dispatch",
+      "004-identity",
+      "005-masterdata",
+      "006-manufacturing-master-links"
+    ],
+    "before": {
+      "mes_trace_object": 12,
+      "mes_work_order": 3,
+      "mes_station_visit": 9,
+      "mes_assembly_link": 10,
+      "mes_test_run": 5,
+      "mes_measurement": 5,
+      "mes_inventory_transaction": 19,
+      "mes_rework_order": 1,
+      "mes_release_record": 1,
+      "mes_release_member": 7,
+      "mes_production_fact": 4
+    },
+    "after": {
+      "mes_trace_object": 12,
+      "mes_work_order": 3,
+      "mes_station_visit": 9,
+      "mes_assembly_link": 10,
+      "mes_test_run": 5,
+      "mes_measurement": 5,
+      "mes_inventory_transaction": 19,
+      "mes_rework_order": 1,
+      "mes_release_record": 1,
+      "mes_release_member": 7,
+      "mes_production_fact": 4
+    },
+    "preserved": true
+  },
+  "temporaryAccounts": {
+    "count": 2,
+    "enabled": false,
+    "activeSessions": 0,
+    "loginAfterDisable": 401
+  },
+  "demoSeedingEnabled": false
+}

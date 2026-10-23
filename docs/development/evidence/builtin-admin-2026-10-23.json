@@ -1,0 +1,38 @@
+{
+  "username": "admin",
+  "builtinAdmin": true,
+  "role": "SYSTEM_ADMIN",
+  "businessRoles": [
+    "ENGINEER",
+    "OPERATOR",
+    "QUALITY",
+    "SYSTEM_ADMIN"
+  ],
+  "tenantId": "T1",
+  "factoryIds": [
+    "T1-F1",
+    "T1-F2"
+  ],
+  "httpLogin": "passed",
+  "managementRead": "passed",
+  "masterDataRead": "passed",
+  "originalBusinessCountsPreserved": {
+    "mes_trace_object": 12,
+    "mes_work_order": 3,
+    "mes_station_visit": 9,
+    "mes_assembly_link": 10,
+    "mes_test_run": 5,
+    "mes_measurement": 5,
+    "mes_inventory_transaction": 19,
+    "mes_rework_order": 1,
+    "mes_release_record": 1,
+    "mes_release_member": 7,
+    "mes_production_fact": 4
+  },
+  "backendTests": 43,
+  "frontendBuild": "passed",
+  "browserLogin": "passed",
+  "browserBuiltinLabel": "passed",
+  "browserAccountEditDisabled": true,
+  "acceptanceSessionLoggedOut": true
+}

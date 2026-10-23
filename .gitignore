@@ -10,6 +10,7 @@
 node_modules/
 dist/
 .vite/
+*.tsbuildinfo
 coverage/
 
 # Backend generated output
@@ -21,3 +22,6 @@ target/
 .vscode/
 *.iml
 *.log
+
+# Controlled document runtime storage
+/var/
