@@ -1,62 +1,55 @@
 # 模组 / PACK MES
 
-> 当前状态（2026-10-23）：本仓库仅保留文档。按用户要求，本轮前后端代码、依赖、构建产物、运行配置、本地数据库及备份已删除。下文实现、启动和验收内容保留为历史记录，不代表当前存在可运行系统。
+> 当前结构（2026-10-24）：工程与产品规划统一在 `Module-PACK-system` 一个 Git 仓库。原 `gmp-platform` 的代码、文档及本地环境已合入本目录，不再作为并列目录或独立仓库。旧 R1-01 实现曾经删除；本次合入的是基于医疗套件改造的 Pack 工程，旧实现与迁移记录仍保留历史边界。
 
-面向电池模组与 PACK 制造的厂级 MES 产品仓库。单客户私有化部署内，必选支持多租户、多工厂、多车间、多产线；覆盖无产线MES的人工站、半自动线及已有产线MES协同，三种模式可混合。租户不预设等于客户、法人或工厂。前后端分别放在 `frontend/` 和 `backend/`，产品与开发文档统一放在 `docs/`。
+面向电池模组与 PACK 制造的厂级 MES 产品仓库。单客户私有化部署内，必选支持多租户、多工厂、多车间、多产线；覆盖无产线MES的人工站、半自动线及已有产线MES协同，三种模式可混合。租户不预设等于客户、法人或工厂。前后端分别放在 `frontend/` 和 `backend/`，启动及验证脚本放在 `scripts/`，产品与开发文档统一放在 `docs/`。
 
 ## 工程目录
 
 ```text
-module-pack/
-├── frontend/                     # 前端工程
-│   ├── src/                      # 页面、组件与业务代码
-│   └── public/                   # 静态资源
-├── backend/                      # 后端工程
+Module-PACK-system/
+├── frontend/                     # React / TypeScript / Vite / MUI 前端
+│   └── src/                      # 页面、组件与业务代码
+├── backend/                      # Java 21 / Spring Boot 后端
 │   └── src/
-│       ├── main/java/            # Java 源码
+│       ├── main/java/            # 接口、领域服务与权限代码
 │       ├── main/resources/
-│       │   └── db/changelog/     # 数据库变更
+│       │   └── db/changelog/     # PostgreSQL / Liquibase 数据库变更
 │       └── test/java/            # 后端测试
+├── scripts/                      # Pack 本地启停、参考数据与验证工具
 └── docs/
+    ├── pack-*.md                 # 当前 Pack 改造、实施、运行与业务讨论
     ├── research/                 # 材料核查与调研
     ├── product/                  # 产品蓝图、功能矩阵、行业设计
     ├── architecture/             # eDHR 复用审查与审查台账
-    └── development/              # 数据、接口与验收契约
+    └── development/              # 开发契约及旧 R1-01 历史资料
 ```
 
-当前已迁入医疗套件的应用框架、系统权限与主数据管理，提供完整模块导航、多页签、用户与角色、组织、菜单、日志和业务主数据页面；生产工单、扫码作业、质量返修及追溯沿用 Pack 领域内核。React / TypeScript / Vite / MUI 前端与 Java 21 / Spring Boot / PostgreSQL / Liquibase 后端可独立构建。实际迁移与验证边界见[管理与作业界面迁移记录](docs/development/management-ui-migration-2026-10-23.md)，未接入真实设备或ERP。
+当前工程沿用医疗套件的应用框架、系统管理与主数据界面，包含 Pack 制造版本、工厂/产线/工位、工单与单件、装配与检验、NG阻断、返修复测、质量放行和双向追溯。已有实施范围、测试与软件流程验收见[首条制造链记录](docs/pack-first-chain-implementation.md)和[管理与作业页面验收记录](docs/pack-ui-business-acceptance-2026-10-24.md)；这些是各实施批次的记录，不代表本次目录合并重新执行了验收，也不代表已接入真实设备或ERP。
 
-入口：[启动与配置手册](docs/development/local-startup.md) · [本轮迁移与验收](docs/development/management-ui-migration-2026-10-23.md) · [前端说明](frontend/README.md) · [后端说明](backend/README.md) · [文档索引](docs/README.md)。
+入口：[本地运行说明](docs/pack-local-setup.md) · [改造方案](docs/pack-adaptation-proposal-2026-10-23.md) · [首链实施记录](docs/pack-first-chain-implementation.md) · [前端说明](frontend/README.md) · [后端说明](backend/README.md) · [文档索引](docs/README.md)。
 
 ## 本地开发与启动
 
-首次启动按[启动与配置手册](docs/development/local-startup.md)准备独立PostgreSQL数据库，将[配置模板](.env.example)复制为根目录`.env`并填写数据库连接。默认`MES_DEMO_ENABLED=false`，首次自动创建固定内置系统管理员`admin`，初始密码`admin123`，无需开启演示或配置额外账号。空库默认范围为`T1 / T1-F1`，可用`MES_ADMIN_TENANT`、`MES_ADMIN_FACTORY`确定首次范围；已有`admin`保留原范围，重启不覆盖已修改的密码。`MES_ADMIN_USERNAME`、`MES_ADMIN_PASSWORD`仅用于可选的额外管理员初始化，额外账号仍要求至少12字符的密码。后端不会自动读取`.env`，需在仓库根目录显式加载：
+在本仓库根目录使用统一脚本管理 Pack 独立环境；首次安装或构建步骤见[本地运行说明](docs/pack-local-setup.md)。脚本使用本机 Homebrew PostgreSQL 18、Java 21 和 Node 22，依赖路径及环境要求以脚本和运行说明为准。
 
 ```sh
-# 终端一：仓库根目录，已完成数据库和 .env 配置
-set -a
-source .env
-set +a
-mvn -f backend/pom.xml package
-java -jar backend/target/module-pack-mes-0.1.0-SNAPSHOT.jar
+python3 scripts/pack-local.py start
+python3 scripts/pack-local.py status
+python3 scripts/pack-local.py stop
 ```
 
-```sh
-# 终端二：仓库根目录
-cd frontend
-npm ci
-npm run dev
-```
+默认前端 `http://127.0.0.1:3010`、后端 `http://127.0.0.1:8090`、数据库 `127.0.0.1:55440/pack_edhr_dev`。内置管理员首次密码为 `admin / admin123`，已有账号使用当前密码。脚本使用根目录 `.env.pack.local`、`.pack-postgres/` 和 `.pack-runtime/`，分别保存本地密钥、独立数据库及附件/日志/缓存；这些内容与依赖、构建产物保持 Git 忽略。停止服务保留数据库和附件。
 
-保持后端启动工作目录为仓库根目录，使受控文件默认保存在根目录`var/controlled-documents`；如从其他目录启动，须在JAR参数中指定绝对路径，例如`--mes.document-storage=/absolute/path/controlled-documents`，并沿用已有受控文件位置。
+不要直接使用保留的医疗默认配置启动：`docker-compose.yml`、应用及 Vite 默认配置仍含医疗工程端口。Pack 脚本显式设置隔离数据源、3010/8090端口和前端代理；医疗项目与其他项目使用各自环境。
 
-默认数据库`127.0.0.1:5432/module_pack_mes`、后端`127.0.0.1:8080`、页面`http://127.0.0.1:5173`。首次使用`admin / admin123`登录，已有账号使用本人已设置的密码，确认正确租户、授权工厂与菜单后配置用户、主数据和生产业务。内置系统管理员自动管理所属租户全部工厂，不跨租户；其专用角色不可编辑、停用或分配给其他账号，个人资料和密码由本人维护，后续设置密码仍需12–200字符。可选演示夹具、改端口、旧55432临时库、健康检查及重启见启动手册。登录页不预填或展示默认密码。令牌保存在当前标签页的`sessionStorage`，刷新时经`/api/me`核实会话和服务器授权后恢复登录。
+当前标准动作支持装配、数值测量和布尔检验，路线仅支持单一顺序链。真实工艺限值、设备协议、现场节拍和交接仍待对应实施验收；工单、派工和人员执行的后续细则见[业务讨论稿](docs/pack-work-order-dispatch-and-execution-rules-2026-10-24.md)，不能视为已全部实现。医疗专属运行入口已退出，遗留源码、历史迁移及DHR构建依赖的清理边界见首链记录。
 
-[管理与作业界面迁移记录](docs/development/management-ui-migration-2026-10-23.md)记录本轮实现与验收（后端38项、前端15项测试）；[目标卡](docs/development/r1-01-core-loop.md)和[核心实现契约](docs/development/r1-01-implementation.md)保留R1-01领域范围与复现依据。当前实现不等于整个R1、75项功能或42项AC已完成。
+旧[启动手册](docs/development/local-startup.md)、[R1-01目标卡](docs/development/r1-01-core-loop.md)、[核心实现契约](docs/development/r1-01-implementation.md)和[管理界面迁移记录](docs/development/management-ui-migration-2026-10-23.md)描述已删除的旧实现，不能用于启动当前工程。整个R1、75项功能或42项AC的完成情况不能据单批软件验收推定。
 
 ## 2026-10-23 产品规划基线 v1.0
 
-现有材料已形成可评审的产品规划基线：业务蓝图、75项功能矩阵及R0–R4目标/交付/退出条件。现已按用户指示启动R1-01代码开发；规划基线v1.0不代表软件v1.0或现场工艺冻结。采用工艺驱动的标准功能页面、领域配置和工序内标准动作，不引入通用表单、独立作业模板中心、电子签名及认证。
+现有材料已形成可评审的产品规划基线：业务蓝图、75项功能矩阵及R0–R4目标/交付/退出条件。当前基于医疗套件改造的 Pack 工程及首链实施记录已归入本仓库；旧 R1-01 实现记录仅作历史参考。规划基线v1.0不代表软件v1.0或现场工艺冻结。采用工艺驱动的标准功能页面、领域配置和工序内标准动作，不引入通用表单、独立作业模板中心、电子签名及认证。
 
 本版补齐厂级统一制造版本及工单快照、范围权限、三模式混合执行与每工序唯一主责；明确绑定/过站/实际消耗写入方，保留电芯→模组→PACK历史谱系、原始结果/规则判定/复测/最终放行及恢复对账。单客户私有化与多租户多工厂兼容，能力是否支持不再待确认。租户业务映射、隔离技术、跨厂共享、现场接口及离线策略仍需核定；设备动作控制和安全联锁归属不变，不包含APS或无条件离线放行。
 

@@ -1,0 +1,376 @@
+import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined';
+import SaveOutlined from '@mui/icons-material/SaveOutlined';
+import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { Box, Button, DialogActions, DialogContent, DialogTitle, Divider, Stack, Typography } from '@mui/material';
+import AppDialog from '@/components/AppDialog';
+import type { TemplateDesignerDialogProps } from './types';
+import { useTemplateDesignerStore } from './store/useTemplateDesignerStore';
+import CanvasTab from './tabs/canvas/CanvasTab';
+import MockFillDialog from './components/mock-fill/MockFillDialog';
+import ModelTab from './tabs/model/ModelTab';
+import WorkflowTab from './tabs/workflow/WorkflowTab';
+import ProjectionDialog from './components/ProjectionDialog';
+import ProjectionValidationDialog from './components/ProjectionValidationDialog';
+import { parseReactTemplateDesignerDocument, serializeTemplateDesignerDocument } from './utils/document';
+import { importTemplateToCanvasPage } from './utils/templateImport';
+import { projectionConfigurationIssues, useProjectionCatalog } from './utils/projectionConfiguration';
+import { useSnackbar } from '@/components/SnackbarProvider';
+
+type TemplateDesignerReactShellProps = Pick<TemplateDesignerDialogProps, 'row' | 'version' | 'onClose' | 'onSave' | 'onAutoSave' | 'saving'>;
+
+const headerActionButtonSx = {
+  height: 32,
+  minWidth: 88,
+  px: 2,
+  borderRadius: 1,
+};
+
+const headerOutlinedActionButtonSx = {
+  ...headerActionButtonSx,
+  color: '#f8fafc',
+  borderColor: 'rgba(255,255,255,.14)',
+  bgcolor: 'transparent',
+  '&:hover': {
+    borderColor: 'rgba(255,255,255,.28)',
+    bgcolor: 'rgba(255,255,255,.06)',
+  },
+};
+
+const headerPrimaryActionButtonSx = {
+  ...headerActionButtonSx,
+  color: '#fff',
+  bgcolor: '#2990ff',
+  '&:hover': { bgcolor: '#1677d2' },
+  '&.Mui-disabled': {
+    color: 'rgba(255,255,255,.72)',
+    bgcolor: 'rgba(41,144,255,.52)',
+  },
+};
+
+export default function TemplateDesignerReactShell({
+  row,
+  version,
+  onClose,
+  onSave,
+  onAutoSave,
+  saving,
+}: TemplateDesignerReactShellProps) {
+  const activeTab = useTemplateDesignerStore((state) => state.activeTab);
+  const document = useTemplateDesignerStore((state) => state.document);
+  const setDocument = useTemplateDesignerStore((state) => state.setDocument);
+  const setActiveTab = useTemplateDesignerStore((state) => state.setActiveTab);
+  const markSaved = useTemplateDesignerStore((state) => state.markSaved);
+  const isDirty = useTemplateDesignerStore((state) => state.isDirty);
+  const getCurrentPage = useTemplateDesignerStore((state) => state.getCurrentPage);
+  const replaceCurrentPageFromImport = useTemplateDesignerStore((state) => state.replaceCurrentPageFromImport);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [mockFillOpen, setMockFillOpen] = useState(false);
+  const [projectionOpen, setProjectionOpen] = useState(false);
+  const [projectionValidationRequested, setProjectionValidationRequested] = useState(false);
+  const [projectionFocusBindingId, setProjectionFocusBindingId] = useState<string | null>(null);
+  const [checkingProjection, setCheckingProjection] = useState(false);
+  const { refetch: refetchProjectionCatalog } = useProjectionCatalog();
+  const { showMessage } = useSnackbar();
+  const [projectionField, setProjectionField] = useState<{ id: string; name: string; tableId?: string } | null>(null);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [subTableDesignFieldId, setSubTableDesignFieldId] = useState<string | null>(null);
+  const activeSubTableDesignField = useMemo(
+    () => document?.model.fields.find((field) => field.id === subTableDesignFieldId && field.type === 'subTable') ?? null,
+    [document, subTableDesignFieldId],
+  );
+  const isSubTableDesigning = Boolean(activeSubTableDesignField);
+  const templateVersionLabel = version?.version || '-';
+  const templatePathLabel = activeSubTableDesignField
+    ? `${row?.name || '未命名表单'} : ${templateVersionLabel} > ${activeSubTableDesignField.name || activeSubTableDesignField.code || '未命名子表'}`
+    : `${row?.name || '未命名表单'} : ${templateVersionLabel}`;
+
+  useEffect(() => {
+    if (!row || !version) return;
+    setDocument(parseReactTemplateDesignerDocument(row, version));
+    setActiveTab('canvas');
+    setSubTableDesignFieldId(null);
+    markSaved();
+  }, [markSaved, row, setActiveTab, setDocument, version]);
+
+  useEffect(() => {
+    if (subTableDesignFieldId && !activeSubTableDesignField) {
+      setSubTableDesignFieldId(null);
+    }
+  }, [activeSubTableDesignField, subTableDesignFieldId]);
+
+  const persistCurrentDocument = async (persist: TemplateDesignerDialogProps['onSave']) => {
+    const currentDocument = useTemplateDesignerStore.getState().document;
+    if (!currentDocument) return;
+    await persist(serializeTemplateDesignerDocument(currentDocument));
+    markSaved(currentDocument);
+  };
+
+  const handleSave = async () => {
+    if (checkingProjection || saving) return;
+    setCheckingProjection(true);
+    try {
+      let current = useTemplateDesignerStore.getState().document;
+      if (current?.model.projection?.bindings.length) {
+        const result = await refetchProjectionCatalog();
+        if (result.isError || !result.data) { showMessage('用途目录加载失败，请重试保存', 'error'); return; }
+        current = useTemplateDesignerStore.getState().document;
+        if (!current) return;
+        const model = current.model;
+        const invalid = model.projection?.bindings.find(binding => projectionConfigurationIssues(model, binding, result.data.models.find(item => item.id === binding.modelId)).length);
+        if (invalid) {
+          setProjectionField(null); setProjectionFocusBindingId(invalid.id); setProjectionValidationRequested(true); setProjectionOpen(true);
+          return;
+        }
+      }
+      await persistCurrentDocument(onSave);
+      setProjectionValidationRequested(false);
+      setProjectionOpen(false);
+    } catch {
+      // The existing save mutation reports API errors and retains the document.
+    } finally { setCheckingProjection(false); }
+  };
+
+  const handleFieldConfirmPersist = async () => {
+    if (!onAutoSave) return;
+    await persistCurrentDocument(onAutoSave);
+  };
+
+  const handleClose = () => {
+    if (isDirty()) {
+      setCloseConfirmOpen(true);
+      return;
+    }
+    onClose();
+  };
+
+  const handleShellBack = () => {
+    if (isSubTableDesigning) {
+      setSubTableDesignFieldId(null);
+      return;
+    }
+    handleClose();
+  };
+
+  const handleImportTemplate = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      const importedPage = await importTemplateToCanvasPage(file, getCurrentPage());
+      replaceCurrentPageFromImport(importedPage);
+      setActiveTab('canvas');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : '模板导入失败');
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%',
+        height: '100%',
+        minWidth: 0,
+        minHeight: 0,
+        bgcolor: '#f4f6fa',
+      }}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xlsm,.xls,.docx,.doc"
+        hidden
+        onChange={(event) => {
+          void handleImportFileChange(event);
+        }}
+      />
+      <Box
+        sx={{
+          minHeight: 64,
+          flexShrink: 0,
+          gap: 1,
+          flexWrap: 'wrap',
+          py: 1,
+          px: 3,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          bgcolor: '#1f2128',
+          color: '#fff',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}
+      >
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Button
+              color="inherit"
+              startIcon={<ArrowBackOutlined />}
+              onClick={handleShellBack}
+              sx={{ color: '#f8fafc', flexShrink: 0, minWidth: 0, px: 1 }}
+            >
+              {isSubTableDesigning ? '返回上一层' : '返回上一页'}
+            </Button>
+          </Box>
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{
+              alignSelf: 'center',
+              height: 28,
+              borderColor: 'rgba(255,255,255,.24)',
+            }}
+          />
+          <Typography data-shell-template-path="true" sx={{ fontSize: 14, color: 'rgba(255,255,255,.82)', whiteSpace: 'nowrap', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {templatePathLabel}
+          </Typography>
+        </Stack>
+        {isSubTableDesigning ? null : (
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            {[
+              { key: 'model', label: '字段设计' },
+              { key: 'canvas', label: '表单设计' },
+              { key: 'workflow', label: '流程设计' },
+            ].map((item) => (
+              <Button
+                key={item.key}
+                onClick={() => setActiveTab(item.key as typeof activeTab)}
+                sx={{
+                  minWidth: 96,
+                  height: 38,
+                  px: 2,
+                  borderRadius: 1.5,
+                  color: activeTab === item.key ? '#fff' : 'rgba(255,255,255,.78)',
+                  bgcolor: activeTab === item.key ? 'rgba(255,255,255,.10)' : 'transparent',
+                  border: activeTab === item.key ? '1px solid rgba(255,255,255,.18)' : '1px solid transparent',
+                }}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </Stack>
+        )}
+        {isSubTableDesigning ? null : (
+          <Stack direction="row" spacing={1.25} alignItems="center">
+            <Button variant="outlined" onClick={() => { setProjectionField(null); setProjectionOpen(true); }} sx={headerOutlinedActionButtonSx}>用途总览</Button>
+            <Button
+              variant="outlined"
+              onClick={handleImportTemplate}
+              sx={headerOutlinedActionButtonSx}
+            >
+              模板导入
+            </Button>
+            <Button variant="outlined" onClick={() => setMockFillOpen(true)} sx={headerOutlinedActionButtonSx}>
+              模拟填报
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<SaveOutlined />}
+              disabled={saving || checkingProjection}
+              onClick={() => void handleSave()}
+              sx={headerPrimaryActionButtonSx}
+            >
+              保存
+            </Button>
+            <Button variant="outlined" onClick={handleClose} sx={headerOutlinedActionButtonSx}>
+              关闭
+            </Button>
+          </Stack>
+        )}
+      </Box>
+      <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden', border: 0, p: 0, m: 0 }}>
+        {activeTab === 'model' ? (
+          <Box sx={{ height: '100%', minHeight: 0, p: 3 }}>
+            <ModelTab
+              subTableDesignFieldId={subTableDesignFieldId}
+              onSubTableDesignFieldIdChange={setSubTableDesignFieldId}
+              onFieldConfirmPersist={handleFieldConfirmPersist}
+              onProjectionField={(field, tableId) => { setProjectionField({ id: field.id, name: field.name, tableId }); setProjectionOpen(true); }}
+              saving={saving}
+            />
+          </Box>
+        ) : null}
+        {activeTab === 'canvas' ? <CanvasTab /> : null}
+        {activeTab === 'workflow' ? (
+          <Box sx={{ height: '100%', minHeight: 0, p: 3 }}>
+            <WorkflowTab />
+          </Box>
+        ) : null}
+      </Box>
+      <ProjectionDialog open={projectionOpen && !projectionValidationRequested} onClose={() => setProjectionOpen(false)} focusField={projectionField} />
+      <ProjectionValidationDialog open={projectionValidationRequested} onClose={() => { setProjectionValidationRequested(false); setProjectionOpen(false); }}
+        onSave={async () => { await handleSave(); }} saving={checkingProjection || Boolean(saving)} focusBindingId={projectionFocusBindingId} />
+      <AppDialog
+        open={closeConfirmOpen}
+        onClose={() => setCloseConfirmOpen(false)}
+        closeAriaLabel="关闭提示"
+        maxWidth="xs"
+        fullWidth
+        aria-labelledby="designer-unsaved-title"
+        aria-describedby="designer-unsaved-description"
+        PaperProps={{
+          sx: {
+            width: 380,
+            maxWidth: 'calc(100% - 32px)',
+            m: 2,
+            borderRadius: 2,
+            boxShadow: '0 12px 40px rgba(15, 23, 42, 0.18)',
+            overflow: 'hidden',
+          },
+        }}
+        BackdropProps={{ sx: { bgcolor: 'rgba(15, 23, 42, 0.36)' } }}
+      >
+        <DialogTitle id="designer-unsaved-title" sx={{ px: 2, pt: 2, pb: 1 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <WarningAmberRounded sx={{ fontSize: 18, flexShrink: 0, color: '#d48806' }} />
+            <Typography component="span" sx={{ fontSize: 14, lineHeight: '22px', fontWeight: 600, color: '#1e293b' }}>
+              当前修改尚未保存
+            </Typography>
+          </Stack>
+        </DialogTitle>
+        <DialogContent sx={{ pl: '42px', pr: 2, pb: 1 }}>
+          <Typography id="designer-unsaved-description" sx={{ fontSize: 13, lineHeight: '20px', color: '#64748b' }}>
+            关闭后，未保存的修改将丢失。
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pt: 0.5, pb: 2, gap: 1, flexWrap: 'wrap', rowGap: 1 }}>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => {
+              setCloseConfirmOpen(false);
+              onClose();
+            }}
+            size="small"
+            sx={{ height: 28, px: 1.5, borderRadius: 1, fontSize: 13 }}
+          >
+            放弃并关闭
+          </Button>
+          <Button
+            variant="contained"
+            autoFocus
+            disableElevation
+            onClick={() => setCloseConfirmOpen(false)}
+            size="small"
+            sx={{ height: 28, px: 1.5, borderRadius: 1, fontSize: 13 }}
+          >
+            继续编辑
+          </Button>
+        </DialogActions>
+      </AppDialog>
+      {document ? (
+        <MockFillDialog
+          open={mockFillOpen}
+          document={document}
+          onClose={() => setMockFillOpen(false)}
+        />
+      ) : null}
+    </Box>
+  );
+}

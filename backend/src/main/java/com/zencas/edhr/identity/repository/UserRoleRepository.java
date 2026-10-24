@@ -1,0 +1,16 @@
+package com.zencas.edhr.identity.repository;
+
+import com.zencas.edhr.identity.entity.UserRole;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.Collection;
+import java.util.List;
+
+@Repository
+public interface UserRoleRepository extends JpaRepository<UserRole, Long> {
+    List<UserRole> findByUserId(Long userId);
+    List<UserRole> findByUserIdIn(List<Long> userIds);
+    List<UserRole> findByRoleId(Long roleId);
+    List<UserRole> findByRoleIdIn(Collection<Long> roleIds);
+    void deleteByUserId(Long userId);
+}

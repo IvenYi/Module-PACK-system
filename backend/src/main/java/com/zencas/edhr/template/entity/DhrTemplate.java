@@ -1,0 +1,48 @@
+package com.zencas.edhr.template.entity;
+
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import jakarta.persistence.*;
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Entity @Table(name = "dhr_template")
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+public class DhrTemplate {
+    @Id
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long id;
+    @Column(name = "tenant_id")
+    @Builder.Default private String tenantId = "default";
+    /**
+     * Legacy storage retained only for existing records. DHR business codes now belong to versions.
+     */
+    @Deprecated
+    @Column(name = "code", length = 64)
+    private String code;
+    @Column(name = "name", nullable = false, length = 128)
+    private String name;
+    @Column(name = "product_family_id")
+    private Long productFamilyId;
+    @Column(name = "category_name", length = 128)
+    private String categoryName;
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+    @Column(name = "status")
+    @Builder.Default private String status = "DRAFT";
+    @Column(name = "created_by")
+    private String createdBy;
+    @Column(name = "created_at") private LocalDateTime createdAt;
+    @Column(name = "updated_by")
+    private String updatedBy;
+    @Column(name = "updated_at") private LocalDateTime updatedAt;
+    @PrePersist void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (updatedAt == null) updatedAt = createdAt;
+        if (updatedBy == null) updatedBy = createdBy;
+    }
+    @PreUpdate void preUpdate() {
+        updatedAt = LocalDateTime.now();
+        if (updatedBy == null) updatedBy = createdBy;
+    }
+}

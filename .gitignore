@@ -16,12 +16,36 @@ coverage/
 # Backend generated output
 target/
 *.class
+*.jar
+build/
+
+# Generated frontend configuration
+frontend/vite.config.js
+frontend/vite.config.d.ts
+frontend/tailwind.config.js
+frontend/tailwind.config.d.ts
 
 # Local editor configuration and logs
 .idea/
 .vscode/
 *.iml
 *.log
+.workbuddy/
+.firecrawl/
+.superpowers/
+tmp/
+.playwright-cli/
+
+# Local Python environments and cache
+.venv/
+__pycache__/
+*.pyc
+/backend/.venv-ocr/
+
+# Independent Pack database, files, cache and verification output
+/.pack-runtime/
+/.pack-postgres/
+output/dhr-model-migration-*/
 
 # Controlled document runtime storage
 /var/

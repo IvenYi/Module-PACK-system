@@ -1,0 +1,442 @@
+import client from './client';
+import type { PageResult } from '@/types/common';
+
+export type ProcessModelingEntityType =
+  | 'MATERIAL'
+  | 'OPERATION'
+  | 'ROUTE'
+  | 'PRODUCT'
+  | 'PRODUCT_FAMILY'
+  | 'PROCESS_DOCUMENT';
+
+export interface ProcessModelingBaseRecord {
+  id: number | string;
+  tenantId?: string;
+  code: string;
+  name?: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+export interface RemarkProcessModelingRecord extends ProcessModelingBaseRecord {
+  remark?: string;
+}
+
+export interface MaterialRecord extends ProcessModelingBaseRecord {
+  specification?: string;
+  brandName?: string | null;
+  version?: string;
+  materialPurpose?: string;
+  effectiveDate?: string;
+  expiryDate?: string;
+  materialTypeId?: string | number | null;
+  materialTypeName?: string | null;
+  unit?: string;
+}
+
+export interface MaterialGroupRecord extends MaterialRecord {
+  versionCount?: number;
+  effectiveVersionCount?: number;
+  versions: MaterialRecord[];
+}
+
+export interface ProductRecord extends RemarkProcessModelingRecord {
+  familyId?: string | number | null;
+  productFamilyId?: string | number | null;
+  materialTypeId?: string | number | null;
+  materialTypeName?: string | null;
+  specification?: string;
+  unit?: string;
+}
+
+export interface ProductFamilyRecord extends ProcessModelingBaseRecord {}
+
+export interface OperationRecord extends RemarkProcessModelingRecord {
+  operationCategory?: string;
+  generalDescription?: string;
+  defaultOperationType?: string;
+  defaultDurationMinutes?: number | null;
+  sortOrder?: number | null;
+}
+
+export interface OperationCategoryRecord {
+  id: string | number;
+  name: string;
+  count: number;
+  sortOrder?: number | null;
+  system?: boolean;
+}
+
+export interface RouteRecord extends RemarkProcessModelingRecord {
+  productFamilyId?: string | number | null;
+  commonAsset?: boolean;
+  versionCount?: number;
+  versions?: RouteVersionRecord[];
+}
+
+export interface RouteVersionRecord {
+  id: string | number;
+  routeId: string | number;
+  code: string;
+  version: string;
+  versionStatus?: string;
+  description?: string | null;
+  versionDescription?: string | null;
+  effectiveDate?: string | null;
+  expiryDate?: string | null;
+  createdBy?: string;
+  createdAt?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+export interface RouteNodeRecord {
+  id?: string | number;
+  routeVersionId?: string | number;
+  nodeKey: string;
+  operationId?: string | number | null;
+  operationCode?: string | null;
+  operationName?: string | null;
+  nodeType?: string;
+  positionX?: number;
+  positionY?: number;
+  sortOrder?: number;
+  configJson?: string | null;
+}
+
+export interface RouteRelationRecord {
+  id?: string | number;
+  routeVersionId?: string | number;
+  sourceNodeKey: string;
+  targetNodeKey: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
+  relationType: string;
+  label?: string | null;
+  ruleExpression?: string | null;
+  priority?: number;
+}
+
+export interface RouteGraphPayload {
+  nodes: RouteNodeRecord[];
+  relations: RouteRelationRecord[];
+}
+
+export interface RouteGraphResponse extends RouteGraphPayload {
+  routeId: string | number;
+  routeVersionId: string | number;
+}
+
+export interface ProcessDocumentRecord extends ProcessModelingBaseRecord {
+  title: string;
+  version?: string;
+  fileReference?: string;
+}
+
+export type ProcessModelingRecord =
+  | MaterialGroupRecord
+  | MaterialRecord
+  | OperationRecord
+  | RouteRecord
+  | ProductRecord
+  | ProductFamilyRecord
+  | ProcessDocumentRecord;
+
+export interface ProcessModelingQuery {
+  page?: number;
+  size?: number;
+  keyword?: string;
+  operationName?: string;
+  operationCode?: string;
+  materialName?: string;
+  materialCode?: string;
+  materialTypeName?: string;
+  operationCategory?: string;
+  status?: string;
+  sort?: string;
+  order?: 'asc' | 'desc';
+}
+
+export interface ProcessModelingPayload {
+  code?: string;
+  name: string;
+  description?: string;
+  status?: string;
+  remark?: string;
+  specification?: string;
+  brandName?: string;
+  unit?: string;
+  materialTypeId?: string | number | null;
+  materialTypeName?: string | null;
+  productFamilyId?: string | number | null;
+  version?: string;
+  versionDescription?: string;
+  commonAsset?: boolean;
+  materialPurpose?: string;
+  effectiveDate?: string | null;
+  expiryDate?: string | null;
+  fileReference?: string;
+  operationCategory?: string;
+  generalDescription?: string;
+  defaultOperationType?: string;
+  defaultDurationMinutes?: number | null;
+  sortOrder?: number | null;
+}
+
+export interface MasterDataDescriptionPayload {
+  code?: string;
+  name: string;
+  description?: string;
+  status?: string;
+  version?: string;
+  fileReference?: string;
+}
+
+const processModelingBase = '/master-data/process-modeling';
+
+const getProcessModelingList = <T extends ProcessModelingRecord>(path: string, params?: ProcessModelingQuery) =>
+  client.get(`/master-data/process-modeling/${path}`, { params }) as Promise<{ data: { data: PageResult<T> } }>;
+
+const createProcessModelingRecord = <T extends ProcessModelingRecord>(path: string, body: ProcessModelingPayload) =>
+  client.post(`${processModelingBase}/${path}`, body) as Promise<{ data: { data: T } }>;
+
+const updateProcessModelingRecord = <T extends ProcessModelingRecord>(path: string, id: string | number, body: ProcessModelingPayload) =>
+  client.put(`${processModelingBase}/${path}/${id}`, body) as Promise<{ data: { data: T } }>;
+
+const createMasterDataDescriptionRecord = <T extends ProcessModelingRecord>(path: string, body: MasterDataDescriptionPayload) =>
+  client.post(`${processModelingBase}/${path}`, body) as Promise<{ data: { data: T } }>;
+
+const updateMasterDataDescriptionRecord = <T extends ProcessModelingRecord>(path: string, id: string | number, body: MasterDataDescriptionPayload) =>
+  client.put(`${processModelingBase}/${path}/${id}`, body) as Promise<{ data: { data: T } }>;
+
+const deleteProcessModelingRecord = (path: string, id: string | number) =>
+  client.delete(`${processModelingBase}/${path}/${id}`);
+
+export const getMaterials = (params?: ProcessModelingQuery) => getProcessModelingList<MaterialGroupRecord>('materials', params);
+export const createMaterial = (body: ProcessModelingPayload) => createProcessModelingRecord<MaterialRecord>('materials', body);
+export interface MaterialImportRowResult {
+  rowNumber: number;
+  code: string;
+  version: string;
+  reason: string;
+}
+
+export interface MaterialImportResult {
+  successCount: number;
+  skippedCount: number;
+  failedCount: number;
+  skippedRows: MaterialImportRowResult[];
+  failedRows: MaterialImportRowResult[];
+}
+
+export const downloadMaterialImportTemplate = () =>
+  client.get(`${processModelingBase}/materials/import-template`, { responseType: 'blob' });
+export const importMaterials = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return client.post(`${processModelingBase}/materials/import`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }) as Promise<{ data: { data: MaterialImportResult } }>;
+};
+export const updateMaterial = (id: string | number, body: ProcessModelingPayload) => updateProcessModelingRecord<MaterialRecord>('materials', id, body);
+export const deleteMaterial = (id: string | number) => deleteProcessModelingRecord('materials', id);
+
+export const getProcessOperations = (params?: ProcessModelingQuery) => getProcessModelingList<OperationRecord>('operations', params);
+export interface OperationImportRowResult {
+  rowNumber: number;
+  code: string;
+  name: string;
+  reason: string;
+}
+
+export interface OperationImportResult {
+  successCount: number;
+  skippedCount: number;
+  failedCount: number;
+  skippedRows: OperationImportRowResult[];
+  failedRows: OperationImportRowResult[];
+}
+
+export const downloadOperationImportTemplate = () =>
+  client.get(`${processModelingBase}/operations/import-template`, { responseType: 'blob' });
+export const importOperations = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return client.post(`${processModelingBase}/operations/import`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }) as Promise<{ data: { data: OperationImportResult } }>;
+};
+export const getProcessOperationCategories = () =>
+  client.get(`${processModelingBase}/operations/categories`) as Promise<{ data: { data: OperationCategoryRecord[] } }>;
+export const createProcessOperationCategory = (body: { name: string }) =>
+  client.post(`${processModelingBase}/operations/categories`, body) as Promise<{ data: { data: OperationCategoryRecord } }>;
+export const updateProcessOperationCategory = (id: string | number, body: { name: string }) =>
+  client.put(`${processModelingBase}/operations/categories/${id}`, body) as Promise<{ data: { data: OperationCategoryRecord } }>;
+export const deleteProcessOperationCategory = (id: string | number) =>
+  client.delete(`${processModelingBase}/operations/categories/${id}`);
+export const reorderProcessOperationCategories = (ids: Array<string | number>) =>
+  client.put(`${processModelingBase}/operations/categories/order`, { ids }) as Promise<{ data: { data: OperationCategoryRecord[] } }>;
+export const createProcessOperation = (body: ProcessModelingPayload) => createProcessModelingRecord<OperationRecord>('operations', body);
+export const updateProcessOperation = (id: string | number, body: ProcessModelingPayload) => updateProcessModelingRecord<OperationRecord>('operations', id, body);
+export const deleteProcessOperation = (id: string | number) => deleteProcessModelingRecord('operations', id);
+
+export const getProcessRoutes = (params?: ProcessModelingQuery) => getProcessModelingList<RouteRecord>('routes', params);
+export const createProcessRoute = (body: ProcessModelingPayload) => createProcessModelingRecord<RouteRecord>('routes', body);
+export const updateProcessRoute = (id: string | number, body: ProcessModelingPayload) => updateProcessModelingRecord<RouteRecord>('routes', id, body);
+export const deleteProcessRoute = (id: string | number) => deleteProcessModelingRecord('routes', id);
+export const createProcessRouteVersion = (routeId: string | number, body: ProcessModelingPayload) =>
+  client.post(`${processModelingBase}/routes/${routeId}/versions`, body) as Promise<{ data: { data: RouteVersionRecord } }>;
+export const updateProcessRouteVersion = (routeId: string | number, versionId: string | number, body: ProcessModelingPayload) =>
+  client.put(`${processModelingBase}/routes/${routeId}/versions/${versionId}`, body) as Promise<{ data: { data: RouteVersionRecord } }>;
+export const deleteProcessRouteVersion = (routeId: string | number, versionId: string | number) =>
+  client.delete(`${processModelingBase}/routes/${routeId}/versions/${versionId}`);
+export const getProcessRouteGraph = (routeId: string | number, versionId: string | number) =>
+  client.get(`${processModelingBase}/routes/${routeId}/versions/${versionId}/graph`) as Promise<{ data: { data: RouteGraphResponse } }>;
+export const saveProcessRouteGraph = (routeId: string | number, versionId: string | number, body: RouteGraphPayload) =>
+  client.put(`${processModelingBase}/routes/${routeId}/versions/${versionId}/graph`, body) as Promise<{ data: { data: RouteGraphResponse } }>;
+
+export const getProducts = (params?: ProcessModelingQuery) => getProcessModelingList<ProductRecord>('products', params);
+export const createProduct = (body: ProcessModelingPayload) => createProcessModelingRecord<ProductRecord>('products', body);
+export const updateProduct = (id: string | number, body: ProcessModelingPayload) => updateProcessModelingRecord<ProductRecord>('products', id, body);
+export const deleteProduct = (id: string | number) => deleteProcessModelingRecord('products', id);
+
+export const getProcessProductFamilies = (params?: ProcessModelingQuery) => getProcessModelingList<ProductFamilyRecord>('product-families', params);
+export const createProcessProductFamily = (body: MasterDataDescriptionPayload) => createMasterDataDescriptionRecord<ProductFamilyRecord>('product-families', body);
+export const updateProcessProductFamily = (id: string | number, body: MasterDataDescriptionPayload) => updateMasterDataDescriptionRecord<ProductFamilyRecord>('product-families', id, body);
+export const deleteProcessProductFamily = (id: string | number) => deleteProcessModelingRecord('product-families', id);
+
+export const getProcessDocuments = (params?: ProcessModelingQuery) => getProcessModelingList<ProcessDocumentRecord>('documents', params);
+export const createProcessDocument = (body: MasterDataDescriptionPayload) => createMasterDataDescriptionRecord<ProcessDocumentRecord>('documents', body);
+export const updateProcessDocument = (id: string | number, body: MasterDataDescriptionPayload) => updateMasterDataDescriptionRecord<ProcessDocumentRecord>('documents', id, body);
+export const deleteProcessDocument = (id: string | number) => deleteProcessModelingRecord('documents', id);
+
+// Product Families
+export const getProductFamilies = (params?: Record<string, unknown>) =>
+  client.get('/master-data/product-families', { params });
+export const createProductFamily = (body: Record<string, unknown>) =>
+  client.post('/master-data/product-families', body);
+export const updateProductFamily = (id: number, body: Record<string, unknown>) =>
+  client.put(`/master-data/product-families/${id}`, body);
+export const deleteProductFamily = (id: number) =>
+  client.delete(`/master-data/product-families/${id}`);
+
+// Units
+export const getUnits = (params?: Record<string, unknown>) =>
+  client.get('/master-data/units', { params });
+export const createUnit = (body: Record<string, unknown>) =>
+  client.post('/master-data/units', body);
+export const updateUnit = (id: number, body: Record<string, unknown>) =>
+  client.put(`/master-data/units/${id}`, body);
+export const deleteUnit = (id: number) =>
+  client.delete(`/master-data/units/${id}`);
+
+export interface EquipmentCategoryRecord {
+  id: string;
+  name: string;
+  system: boolean;
+  count: number;
+}
+
+export interface EquipmentTypeRecord {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  createdBy?: string | null;
+  createdAt?: string;
+  updatedBy?: string | null;
+  updatedAt?: string;
+}
+
+export interface EquipmentRecord {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  equipmentTypeId: string;
+  equipmentTypeName?: string | null;
+  categoryName?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  serialNumber?: string | null;
+  purchaseDate?: string | null;
+  status: string;
+  siteId?: string | null;
+  referenceLocked?: boolean;
+  createdBy?: string | null;
+  createdAt?: string;
+  updatedBy?: string | null;
+  updatedAt?: string;
+}
+
+export const getEquipmentCategories = () => client.get('/master-data/equipment/categories');
+export const createEquipmentCategory = (body: { name: string }) => client.post('/master-data/equipment/categories', body);
+export const updateEquipmentCategory = (id: string, body: { name: string }) => client.put(`/master-data/equipment/categories/${id}`, body);
+export const deleteEquipmentCategory = (id: string) => client.delete(`/master-data/equipment/categories/${id}`);
+
+export const getEquipmentTypes = (params?: Record<string, unknown>) =>
+  client.get('/master-data/equipment/types', { params });
+export const createEquipmentType = (body: Record<string, unknown>) =>
+  client.post('/master-data/equipment/types', body);
+export const updateEquipmentType = (id: string, body: Record<string, unknown>) =>
+  client.put(`/master-data/equipment/types/${id}`, body);
+export const deleteEquipmentType = (id: string) =>
+  client.delete(`/master-data/equipment/types/${id}`);
+
+export async function getAllEquipmentTypes(): Promise<EquipmentTypeRecord[]> {
+  const records: EquipmentTypeRecord[] = [];
+  let page = 1;
+  let totalPages = 1;
+  do {
+    const response = await getEquipmentTypes({ page, size: 200 });
+    const result = response.data.data as PageResult<EquipmentTypeRecord>;
+    records.push(...result.content);
+    totalPages = result.totalPages;
+    page += 1;
+  } while (page <= totalPages);
+  return records;
+}
+
+export const getEquipment = (params?: Record<string, unknown>) => client.get('/master-data/equipment', { params });
+export const getEquipmentFactoryOptions = () => client.get('/master-data/equipment/factory-options');
+export const createEquipment = (body: Record<string, unknown>) => client.post('/master-data/equipment', body);
+export const updateEquipment = (id: string, body: Record<string, unknown>) => client.put(`/master-data/equipment/${id}`, body);
+export const deleteEquipment = (id: string) =>
+  client.delete(`/master-data/equipment/${id}`);
+
+// Operations
+export const getOperations = (params?: Record<string, unknown>) =>
+  client.get('/master-data/operations', { params });
+export const createOperation = (body: Record<string, unknown>) =>
+  client.post('/master-data/operations', body);
+export const updateOperation = (id: number, body: Record<string, unknown>) =>
+  client.put(`/master-data/operations/${id}`, body);
+export const deleteOperation = (id: number) =>
+  client.delete(`/master-data/operations/${id}`);
+
+// Routes
+export const getRoutes = (params?: Record<string, unknown>) =>
+  client.get('/master-data/routes', { params });
+export const createRoute = (body: Record<string, unknown>) =>
+  client.post('/master-data/routes', body);
+export const updateRoute = (id: number, body: Record<string, unknown>) =>
+  client.put(`/master-data/routes/${id}`, body);
+export const deleteRoute = (id: number) =>
+  client.delete(`/master-data/routes/${id}`);
+
+// SOP Documents
+export const getSopDocuments = (params?: Record<string, unknown>) =>
+  client.get('/master-data/sop-documents', { params });
+export const createSopDocument = (body: Record<string, unknown>) =>
+  client.post('/master-data/sop-documents', body);
+export const updateSopDocument = (id: number, body: Record<string, unknown>) =>
+  client.put(`/master-data/sop-documents/${id}`, body);
+export const deleteSopDocument = (id: number) =>
+  client.delete(`/master-data/sop-documents/${id}`);

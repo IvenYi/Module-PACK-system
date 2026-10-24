@@ -1,55 +1,48 @@
 # 后端工程
 
-本目录为 Pack MES 后端，使用Java 21、Spring Boot 3.3.0、Spring JDBC、PostgreSQL与Liquibase；采用独立数据库和模块化单体。提供系统管理、权限、主数据及R1-01制造内核，制造、装配、检验、实耗、质量及消息回执均落库，无表单/DHR/电子签名依赖。
+本目录为基于医疗套件改造的 Pack MES 后端，使用 Java 21、Spring Boot 3.3.0、Spring Data JPA/JDBC、PostgreSQL 与 Liquibase。代码与前端、脚本及产品规划同属 `Module-PACK-system` 一个仓库，当前 Maven 产物名仍为 `edhr-0.0.1-SNAPSHOT.jar`。
 
 ## 构建、运行和检查
 
-首次数据库创建、可保存的[配置模板](../.env.example)、全部配置项、旧55432临时库及日常重启见[启动与配置手册](../docs/development/local-startup.md)。需要Java 21、Maven及一个独立的PostgreSQL数据库。先创建专用数据库及用户，再在本目录设置（也可先在仓库根目录用`set -a; source .env; set +a`加载配置）：
+完整环境要求及安装步骤见[本地运行说明](../docs/pack-local-setup.md)。本机运行使用独立 PostgreSQL 18 集群、Java 21 和 Node 22；后端打包会构建前端 DHR 打印资源，因此首次需先安装前端依赖。
+
+在仓库根目录执行：
 
 ```sh
-export MES_DB_URL='jdbc:postgresql://127.0.0.1:5432/module_pack_mes'
-export MES_DB_USER='mes'
-export MES_DB_PASSWORD='自行设置的数据库密码'
-# 使用固定内置 admin 时以下配置可留空
-export MES_ADMIN_USERNAME=''
-export MES_ADMIN_PASSWORD=''
-export MES_ADMIN_TENANT=''
-export MES_ADMIN_FACTORY=''
-export MES_DEMO_ENABLED=false
-mvn package
-java -jar target/module-pack-mes-0.1.0-SNAPSHOT.jar
+cd frontend
+npm ci --no-audit --no-fund
+cd ..
+JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home mvn -f backend/pom.xml -DskipTests package
+python3 scripts/pack-local.py start
+python3 scripts/pack-local.py status
+python3 scripts/pack-local.py stop
 ```
 
-`mvn package`包含测试。服务默认仅监听`127.0.0.1:8080`；`MES_PORT`可调整端口，调整后须同步修改前端`vite.config.ts`中的`/api`代理并重启。`GET /api/health`返回`status=UP`和`slice=R1-01`，实际数据库/账号可用性还需登录核对。Liquibase自动迁移MES专用库，不能指向其他项目数据库。
-
-默认关闭演示模式，启动时自动建立固定内置系统管理员 `admin / admin123`，默认租户为 T1。初始密码仅在首次创建时写入 BCrypt 哈希，重启不覆盖已修改的密码。内置账号自动管理所属租户全部工厂，其角色与启用状态受保护，不跨租户。`MES_ADMIN_TENANT` / `MES_ADMIN_FACTORY` 可指定首次范围，已有内置账号范围不变；`MES_ADMIN_USERNAME` / `MES_ADMIN_PASSWORD` 保留用于可选额外管理员，仍要求至少12字符密码。已有账号和业务事实保持原样。管理员登录后，在系统管理中维护用户、多角色、工厂授权和设备/外部MES接入账号，在主数据中配置制造资源及业务资料。
-
-仅需使用预置夹具验证时，在独立演示库显式设置 `MES_DEMO_ENABLED=true` 及至少12字符的 `MES_DEMO_PASSWORD`。关闭开关不会删除或停用已有数据；更改该密码不会重置已有账号。正常管理与作业流程不依赖演示初始化。
-
-登录返回不透明Bearer令牌；服务器仅保存令牌摘要，授权范围和来源取自服务端身份，每次请求重新核对。前端令牌仅保存在内存；重登不会继承前一会话未确认请求。
-
-`mvn test`默认在独立H2测试库执行领域与HTTP接口测试，不使用上面的运行数据库。测试使用真实关系记录与事务，没有模拟成功的数据库。测试环境采用Mockito子类插件避免不必要的JVM动态挂载；当前测试没有业务Mock。
-
-可选的预置夹具HTTP复现工具仅依赖Python标准库，仅在上述独立演示库运行：
+`-DskipTests package` 只完成打包，不代表测试通过。Pack 领域与路线校验可单独运行：
 
 ```sh
-# run要求T1-F1尚无执行事实；工具会写入明确的DEMO业务，不重置数据库
-python3 scripts/verify-demo.py --phase run --evidence /tmp/r1-live-evidence.json
-# 停止、重启同一后端并使用同一数据库后：
-python3 scripts/verify-demo.py --phase replay --evidence /tmp/r1-live-evidence.json
+JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home mvn -f backend/pom.xml -Dtest=PackDomainTest,PackRouteGraphTest test
 ```
 
-工具从环境读取`MES_DEMO_PASSWORD`，`MES_BASE_URL`默认本机8080，只允许本机HTTP；证据不包含密码/令牌。`replay`对比持久化事实并使用原请求/业务运行补传，不把新增回执误算成新增生产。
+本地脚本使用 `127.0.0.1:8090`，独立数据库为 `127.0.0.1:55440/pack_edhr_dev`；应用用户为 `pack_edhr`。根目录 `.env.pack.local` 保存本地随机数据库密码和 JWT 密钥，`.pack-postgres/` 保存数据库，`.pack-runtime/files/` 保存业务附件。脚本显式覆盖数据源、监听地址、附件路径和运行缓存，并默认停用医疗 OCR。上述本地数据、依赖、日志和构建产物不进入 Git。
 
-完整命令字段、状态、复现顺序及已知限制见[实现契约](../docs/development/r1-01-implementation.md)。接口复现不代替真实设备接口、生产安全联锁、现场性能及数据库/文件/消息联合恢复验收。依赖固定为本地已验证基线，本轮未执行在线依赖安全审计。
+首次内置管理员为 `admin / admin123`，已有账号使用当前密码。Pack 请求由服务端用户、角色和工厂授权确定范围；内置管理员保护、会话撤销及权限修改生效边界见[首链实施记录](../docs/pack-first-chain-implementation.md)。
+
+不要直接沿用医疗默认 `docker-compose.yml`、应用配置或无隔离参数的 `mvn spring-boot:run`：它们仍包含医疗项目的端口和数据源。Pack 日常启停统一使用仓库根目录的 `scripts/pack-local.py`。
+
+## 当前实现与边界
+
+Pack 领域包含制造版本冻结、工单与单件、受控进站、装配、数值/布尔检验、NG锁定、返修拆换与复测、质量放行、谱系与历史追溯，以及设备/MES消息的身份、幂等和冲突校验。制造完成与质量放行分别管理；当前路线只支持单一顺序链。
+
+已记录的业务、HTTP、权限及软件流程验收见[首链实施记录](../docs/pack-first-chain-implementation.md)和[页面业务验收记录](../docs/pack-ui-business-acceptance-2026-10-24.md)。这些记录属于原实施批次，本次目录合并不表示已重新执行；真实设备协议、工艺限值、现场性能与恢复验收仍有边界。工单派工、SN及数量结案等后续规则见[业务讨论稿](../docs/pack-work-order-dispatch-and-execution-rules-2026-10-24.md)，不作为全部已实现能力。
+
+医疗表单、DHR和签名的正式运行入口已退出，部分遗留源码、历史迁移和DHR构建依赖仍保留；当前工程不能描述为已完全移除这些依赖。旧[启动手册](../docs/development/local-startup.md)与[R1-01实现契约](../docs/development/r1-01-implementation.md)描述已删除的旧 Pack 实现，仅供历史参考，其 JAR、`MES_*` 配置及复现工具不适用于当前代码。
 
 | 目录 | 用途 |
 | --- | --- |
-| `src/main/java/` | 接口、领域服务、权限与集成代码 |
-| `src/main/resources/` | 应用资源与配置模板 |
-| `src/main/resources/db/changelog/` | MES 数据库基线与后续迁移 |
-| `src/test/java/` | 领域规则、接口与集成测试 |
+| `src/main/java/` | 接口、Pack领域服务、沿用管理能力、权限与集成代码 |
+| `src/main/resources/` | 应用配置和 Liquibase 数据库变更 |
+| `src/test/java/` | 领域、权限、接口与历史模块测试 |
+| `scripts/` | 后端辅助及历史验证工具；Pack统一启停位于仓库根目录 `scripts/` |
 
-建立独立的 MES 数据库基线；复用鉴权、权限等基础能力时，按[逐项复用审查](../docs/architecture/edhr-reuse-audit.md)解除表单、DHR、电子签名认证依赖。设备实测原始数据、装配履历、质量判定与业务审计按 MES 领域契约设计。
-
-开发依据：[开发与验收契约](../docs/development/contracts-and-acceptance.md)、[行业详细设计](../docs/product/pack-domain-design.md)、[功能矩阵](../docs/product/function-matrix.md)。
+开发依据：[改造方案](../docs/pack-adaptation-proposal-2026-10-23.md)、[开发与验收契约](../docs/development/contracts-and-acceptance.md)、[行业详细设计](../docs/product/pack-domain-design.md)、[功能矩阵](../docs/product/function-matrix.md)。
